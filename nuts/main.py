@@ -1,4 +1,4 @@
-from examples.gaussian_example import run
+from benchmarks.nuts_benchmark import run
 
 if __name__ == "__main__":
     run()
