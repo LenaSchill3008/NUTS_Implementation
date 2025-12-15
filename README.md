@@ -6,6 +6,7 @@ This project provides a **Python implementation of the No-U-Turn Sampler (NUTS)*
 
 ## Project Structure
 
+```bash
 nuts/
 ├── core/
 │   └── density.py           # Base class for target distributions
@@ -19,6 +20,7 @@ nuts/
 ├── examples/                # (Optional) example scripts, e.g., gaussian_example.py
 ├── main.py                  # Entry point; runs benchmarks by default
 ├── requirements.txt         # Python dependencies
+```
 
 ---
 
