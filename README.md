@@ -9,17 +9,21 @@ This project provides a **Python implementation of the No-U-Turn Sampler (NUTS)*
 ```bash
 nuts/
 ├── core/
-│   └── density.py           # Base class for target distributions
+│   └── density.py           # Defines base classes for log-probability and gradient functions
+│   └── leapfrog.py          # Implements leapfrog integration for Hamiltonian dynamics
+│   └── gradient.py          # Provides gradient computation utilities 
+│   └── tree.py              # Implements tree-building logic for NUTS recursion
+│   └── adaptation.py        # Handles step size and mass matrix adaptation
 ├── sampler/
 │   ├── nuts.py              # NUTS sampler implementation
-│   └── rwm.py               # Random-Walk Metropolis baseline
+│   └── rwm.py               # Random-Walk Metropolis baseline sampler
 ├── benchmarks/
-│   ├── models.py            # Benchmark models (Standard Normal, Correlated Gaussian, Banana)
-│   ├── metrics.py           # Evaluation metrics (ESS, autocorrelation, timing)
-│   └── nuts_benchmark.py    # Runs full benchmark suite
-├── examples/                # (Optional) example scripts, e.g., gaussian_example.py
-├── main.py                  # Entry point; runs benchmarks by default
+│   ├── models.py            # Predefined benchmark distributions for testing NUTS
+│   ├── metrics.py           # Metrics to evaluate sampler performance (ESS, runtime, autocorrelation)
+│   └── nuts_benchmark.py    # Runs the full benchmark suite and prints results
+├── main.py                  # Entry point
 ├── requirements.txt         # Python dependencies
+
 ```
 
 ---
