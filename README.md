@@ -22,7 +22,8 @@ nuts/
 │   ├── metrics.py           # Metrics to evaluate sampler performance (ESS, runtime, autocorrelation)
 │   └── nuts_benchmark.py    # Runs the full benchmark suite and prints results
 ├── main.py                  # Entry point
-├── requirements.txt         # Python dependencies
+├── notebook.ipynb	     # Analysis
+├── pyproject.toml           # Project dependencies
 
 ```
 
@@ -50,15 +51,14 @@ cd <repo-folder>
 2. **Create a virtual environment**
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate   # macOS/Linux
-.venv\Scripts\activate      # Windows
+uv venv 
+source .venv/bin/activate   
 ```
 
 3. **Install dependencies**
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ---
