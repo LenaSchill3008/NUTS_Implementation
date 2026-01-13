@@ -1,5 +1,5 @@
 import numpy as np
-from core.density import LogDensity
+from src.core.density import LogDensity
 
 
 class StandardNormal(LogDensity):

@@ -1,7 +1,7 @@
 import numpy as np
-from core.leapfrog import LeapfrogIntegrator
-from core.tree import NutsTreeBuilder
-from core.adaptation import DualAveraging
+from src.core.leapfrog import LeapfrogIntegrator
+from src.core.tree import NutsTreeBuilder
+from src.core.adaptation import DualAveraging
 
 
 class NUTSSampler:

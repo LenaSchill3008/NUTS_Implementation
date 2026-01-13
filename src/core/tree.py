@@ -5,9 +5,10 @@ class NutsTreeBuilder:
     """ 
     Recursive tree builder for the No-U-Turn Sampler.
     """
-    def __init__(self, integrator):
+    def __init__(self, integrator, max_depth = 12):
         # Leapfrog integrator used to simulate Hamiltonian dynamics
         self.integrator = integrator
+        self.max_depth = max_depth
 
     @staticmethod
     def stop_criterion(x_minus, x_plus, p_minus, p_plus):
@@ -39,6 +40,19 @@ class NutsTreeBuilder:
                 x1, p1, g1, # rightmost state
                 x1, g1, logp1, # proposal
                 n, s, alpha, 1
+            )
+        
+
+        if depth >= self.max_depth:
+            # return a stopped subtree
+            return (
+                x, p, grad_u,     # xm, pm, gm
+                x, p, grad_u,     # xp, pp, gp
+                x, grad_u, -np.inf,  # proposal (never chosen)
+                0,                # n
+                0,                # s (STOP)
+                0.0,              # a
+                0                 # na
             )
 
         # build the left subtree
@@ -72,7 +86,7 @@ class NutsTreeBuilder:
 
             # update counts and stopping criterion
             n += n2
-            s = s2 and self.stop_criterion(xm, xp, pm, pp)
+            s = int(s2 and self.stop_criterion(xm, xp, pm, pp))
             a += a2
             na += na2
 

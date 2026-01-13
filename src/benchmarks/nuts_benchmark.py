@@ -1,8 +1,8 @@
 import numpy as np
-from sampler.nuts import NUTSSampler
-from sampler.rwm import RandomWalkMetropolis
-from benchmarks.models import StandardNormal, CorrelatedGaussian, Banana
-from benchmarks.metrics import effective_sample_size, timed_run
+from src.sampler.nuts import NUTSSampler
+from src.sampler.rwm import RandomWalkMetropolis
+from src.benchmarks.models import StandardNormal, CorrelatedGaussian, Banana
+from src.benchmarks.metrics import effective_sample_size, timed_run
 
 
 def run_model(name, model, x0):
