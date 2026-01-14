@@ -27,10 +27,18 @@ def find_reasonable_epsilon(log_density, x0):
     
     # Determine direction: a = 1 if we should increase eps, -1 if decrease
     # If acceptance prob > 0.5, we can use a larger eps
-    a = 2 * int(exp(joint_new - joint) > 0.5) - 1
+    log_accept_prob = joint_new - joint
+    
+    if log_accept_prob > np.log(0.5):
+        a = 1
+    else:
+        a = -1
     
     # Keep doubling/halving until acceptance probability crosses 0.5
-    while (exp(joint_new - joint))**a > 2**(-a):
+    # Condition from Algorithm 4: (p(θ',r')/p(θ,r))^a > 2^(-a)
+    # Taking logs: a * log(accept_prob) > -a * log(2)
+    # Rearranged: a * (log(accept_prob) + log(2)) > 0
+    while a * (log_accept_prob + np.log(2)) > 0:
         eps = eps * (2**a)
         
         # Take new leapfrog step with updated eps
@@ -41,6 +49,7 @@ def find_reasonable_epsilon(log_density, x0):
         
         # Recompute joint probability
         joint_new = logp_new - 0.5 * np.dot(r_new, r_new)
+        log_accept_prob = joint_new - joint
     
     return eps
 

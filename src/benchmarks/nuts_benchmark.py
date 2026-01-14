@@ -10,7 +10,7 @@ def run_model(name, model, x0, true_mean=None, true_cov=None):
 
     # --- NUTS ---
     nuts = NUTSSampler(model, delta=0.65)
-    (nuts_samples, stats, eps), nuts_time = timed_run(
+    (nuts_samples, _, eps), nuts_time = timed_run(
         lambda: nuts.sample(x0, n_samples=3000, n_adapt=1000)
     )
 
@@ -53,11 +53,11 @@ def run():
     np.random.seed(42)
 
     run_model(
-    "Standard Normal",
-    StandardNormal(),
-    x0=np.array([0.0]),
-    true_mean=np.array([0.0]),
-    true_cov=np.array([[1.0]])
+        "Standard Normal",
+        StandardNormal(),
+        x0=np.array([0.0]),
+        true_mean=np.array([0.0]),
+        true_cov=np.array([[1.0]])
     )
 
     run_model(
