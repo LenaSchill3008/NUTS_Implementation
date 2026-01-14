@@ -23,7 +23,7 @@ class LeapfrogIntegrator:
             logp: Log density at new position.
         """
         # Half-step momentum update
-        p_half = p + 0.5 * eps * grad_u
+        p_half = p - 0.5 * eps * grad_u # p + 0.5 * eps * grad_u
 
         # Full-step position update
         x_new = x + eps * p_half
@@ -32,6 +32,6 @@ class LeapfrogIntegrator:
         logp, grad_u_new = self.log_density.evaluate(x_new)
 
         # Second half-step momentum update
-        p_new = p_half + 0.5 * eps * grad_u_new
+        p_new = p_half - 0.5 * eps * grad_u_new # p_half + 0.5 * eps * grad_u_new
         
         return x_new, p_new, grad_u_new, logp

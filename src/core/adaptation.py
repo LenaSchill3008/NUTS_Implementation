@@ -1,4 +1,48 @@
+import numpy as np
 from numpy import log, exp, sqrt
+
+
+def find_reasonable_epsilon(log_density, x0):
+    """
+    Heuristic for finding an initial step size epsilon from Algorithm 4.
+    
+    Repeatedly doubles or halves epsilon until the acceptance 
+    probability of a Langevin proposal crosses 0.5.
+    """
+    eps = 1.0
+    r = np.random.randn(len(x0))
+    
+    # Compute initial log probability and gradient
+    logp, grad_u = log_density.evaluate(x0)
+    
+    # Take one leapfrog step (using correct gradient signs)
+    r_half = r - 0.5 * eps * grad_u
+    x_new = x0 + eps * r_half
+    logp_new, grad_u_new = log_density.evaluate(x_new)
+    r_new = r_half - 0.5 * eps * grad_u_new
+    
+    # Compute joint probabilities (Hamiltonian)
+    joint = logp - 0.5 * np.dot(r, r)
+    joint_new = logp_new - 0.5 * np.dot(r_new, r_new)
+    
+    # Determine direction: a = 1 if we should increase eps, -1 if decrease
+    # If acceptance prob > 0.5, we can use a larger eps
+    a = 2 * int(exp(joint_new - joint) > 0.5) - 1
+    
+    # Keep doubling/halving until acceptance probability crosses 0.5
+    while (exp(joint_new - joint))**a > 2**(-a):
+        eps = eps * (2**a)
+        
+        # Take new leapfrog step with updated eps
+        r_half = r - 0.5 * eps * grad_u
+        x_new = x0 + eps * r_half
+        logp_new, grad_u_new = log_density.evaluate(x_new)
+        r_new = r_half - 0.5 * eps * grad_u_new
+        
+        # Recompute joint probability
+        joint_new = logp_new - 0.5 * np.dot(r_new, r_new)
+    
+    return eps
 
 
 class DualAveraging:
@@ -18,30 +62,31 @@ class DualAveraging:
         self.t0 = 10
         self.kappa = 0.75
 
-        # Running averages
-        self.eps_bar = 1.0
+        # Initialize eps_bar to eps
+        self.eps_bar = eps
         self.h_bar = 0.0
+
 
     def update(self, m, eps, alpha, n_alpha):
         """
         Update step size during warmup.
         """
 
-        # Learning rate
+        # Learning rate 
         eta = 1 / (m + self.t0)
 
-        # Update running acceptance error
+        # Update running acceptance error 
         self.h_bar = (1 - eta) * self.h_bar + eta * (
             self.delta - alpha / n_alpha
         )
 
-        # Update epsilon
+        # Update epsilon 
         eps = exp(self.mu - sqrt(m) / self.gamma * self.h_bar)
 
-        # Smooth epsilon 
-        eta = m ** -self.kappa
+        # Smooth epsilon
+        eta_bar = m ** (-self.kappa)
         self.eps_bar = exp(
-            (1 - eta) * log(self.eps_bar) + eta * log(eps)
+            (1 - eta_bar) * log(self.eps_bar) + eta_bar * log(eps)
         )
 
         return eps

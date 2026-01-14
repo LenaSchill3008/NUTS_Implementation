@@ -1,7 +1,7 @@
 import numpy as np
 from src.core.leapfrog import LeapfrogIntegrator
 from src.core.tree import NutsTreeBuilder
-from src.core.adaptation import DualAveraging
+from src.core.adaptation import DualAveraging, find_reasonable_epsilon
 
 
 class NUTSSampler:
@@ -24,6 +24,16 @@ class NUTSSampler:
     def sample(self, x0, n_samples, n_adapt):
         """
         Run NUTS sampling.
+        
+        Args:
+            x0: Initial position
+            n_samples: Number of samples to collect (after warmup)
+            n_adapt: Number of warmup iterations for adaptation
+            
+        Returns:
+            samples: Array of samples (n_samples × dim)
+            logps: Array of log probabilities
+            eps: Final adapted step size
         """
 
         dim = len(x0)
@@ -32,8 +42,11 @@ class NUTSSampler:
 
         # Initial energy and gradient
         logp, grad_u = self.log_density.evaluate(x0)
-        eps = 1.0
-
+        
+        # Find reasonable initial epsilon
+        eps = find_reasonable_epsilon(self.log_density, x0)
+        
+        # Initialize dual averaging
         adapt = DualAveraging(self.delta, eps)
         x = x0.copy()
 
@@ -63,8 +76,10 @@ class NUTSSampler:
 
             # Tree expansion loop
             while s == 1:
+                # Choose direction
                 v = 1 if np.random.rand() < 0.5 else -1
 
+                # Build tree
                 (
                     xm, pm, gm,
                     xp, pp, gp,
@@ -77,11 +92,14 @@ class NUTSSampler:
                     logu, v, depth, eps, joint0
                 )
 
-                # Accept proposal with probability proportional to subtree size
+                # Accept proposal with probability n'/n
                 if sc == 1 and np.random.rand() < nc / max(n + nc, 1):
                     x_new, grad_u, logp_new = xc, gc, logpc
 
+                # Update counters
                 n += nc
+                
+                # Check stopping criterion
                 s = sc and self.tree.stop_criterion(xm, xp, pm, pp)
                 alpha += ac
                 n_alpha += nac
@@ -92,7 +110,11 @@ class NUTSSampler:
             # Adapt step size during warmup
             if m <= n_adapt:
                 eps = adapt.update(m, eps, alpha, n_alpha)
+
             else:
+                # Use the smoothed eps_bar from dual averaging
+                if m == n_adapt + 1:
+                    eps = adapt.eps_bar
                 samples.append(x.copy())
                 logps.append(logp)
 

@@ -20,6 +20,27 @@ class CorrelatedGaussian(LogDensity):
 
     def grad_log_prob(self, x):
         return -self.A @ x
+    
+
+class CorrelatedGaussianND(LogDensity):
+    def __init__(self, dim=10, rho=0.9):
+        self.dim = dim
+        self.rho = rho
+
+        # Toeplitz covariance matrix
+        cov = rho ** np.abs(
+            np.subtract.outer(np.arange(dim), np.arange(dim))
+        )
+
+        # Precision matrix
+        self.A = np.linalg.inv(cov)
+
+    def log_prob(self, x):
+        return -0.5 * x @ self.A @ x
+
+    def grad_log_prob(self, x):
+        return -self.A @ x
+
 
 
 class Banana(LogDensity):
