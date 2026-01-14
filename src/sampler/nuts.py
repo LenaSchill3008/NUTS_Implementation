@@ -1,66 +1,39 @@
 import numpy as np
 from src.core.leapfrog import LeapfrogIntegrator
 from src.core.tree import NutsTreeBuilder
-from src.core.adaptation import DualAveraging, find_reasonable_epsilon
+from src.core.adaptation import DualAveraging
 
 
 class NUTSSampler:
-    """
-    High-level No-U-Turn Sampler.
-
-    This class orchestrates:
-    - Momentum resampling
-    - Tree building
-    - Step-size adaptation
-    - Sample collection
-    """
-
+    
     def __init__(self, log_density, delta=0.6):
         self.log_density = log_density
         self.integrator = LeapfrogIntegrator(log_density)
         self.tree = NutsTreeBuilder(self.integrator)
         self.delta = delta
 
-    def sample(self, x0, n_samples, n_adapt):
-        """
-        Run NUTS sampling.
-        
-        Args:
-            x0: Initial position
-            n_samples: Number of samples to collect (after warmup)
-            n_adapt: Number of warmup iterations for adaptation
-            
-        Returns:
-            samples: Array of samples (n_samples × dim)
-            logps: Array of log probabilities
-            eps: Final adapted step size
-        """
-
+    def sample(self, x0, n_samples, n_adapt, collect_diagnostics=False):
         dim = len(x0)
         samples = []
         logps = []
+        
+        diagnostics = {
+            'n_leapfrog': [],
+            'depth': [],
+            'accept_prob': []
+        } if collect_diagnostics else None
 
-        # Initial energy and gradient
         logp, grad_u = self.log_density.evaluate(x0)
-        
-        # Find reasonable initial epsilon
-        eps = find_reasonable_epsilon(self.log_density, x0)
-        
-        # Initialize dual averaging
+        eps = 1.0
+
         adapt = DualAveraging(self.delta, eps)
         x = x0.copy()
 
         for m in range(1, n_samples + n_adapt + 1):
-            # Sample fresh momentum
             p0 = np.random.randn(dim)
-
-            # Initial Hamiltonian
             joint0 = logp - 0.5 * p0 @ p0
-
-            # Slice variable
             logu = joint0 - np.random.exponential()
 
-            # Initialize tree
             xm = xp = x.copy()
             pm = pp = p0.copy()
             gm = gp = grad_u.copy()
@@ -74,12 +47,9 @@ class NUTSSampler:
             alpha = 0
             n_alpha = 0
 
-            # Tree expansion loop
             while s == 1:
-                # Choose direction
                 v = 1 if np.random.rand() < 0.5 else -1
 
-                # Build tree
                 (
                     xm, pm, gm,
                     xp, pp, gp,
@@ -92,14 +62,10 @@ class NUTSSampler:
                     logu, v, depth, eps, joint0
                 )
 
-                # Accept proposal with probability n'/n
                 if sc == 1 and np.random.rand() < nc / max(n + nc, 1):
                     x_new, grad_u, logp_new = xc, gc, logpc
 
-                # Update counters
                 n += nc
-                
-                # Check stopping criterion
                 s = sc and self.tree.stop_criterion(xm, xp, pm, pp)
                 alpha += ac
                 n_alpha += nac
@@ -107,15 +73,19 @@ class NUTSSampler:
 
             x, logp = x_new, logp_new
 
-            # Adapt step size during warmup
             if m <= n_adapt:
                 eps = adapt.update(m, eps, alpha, n_alpha)
-
             else:
-                # Use the smoothed eps_bar from dual averaging
-                if m == n_adapt + 1:
-                    eps = adapt.eps_bar
                 samples.append(x.copy())
                 logps.append(logp)
+                
+                if collect_diagnostics:
+                    diagnostics['n_leapfrog'].append(nac)
+                    diagnostics['depth'].append(depth)
+                    diagnostics['accept_prob'].append(alpha / max(n_alpha, 1))
 
-        return np.array(samples), np.array(logps), eps
+        result = (np.array(samples), np.array(logps), eps)
+        if collect_diagnostics:
+            result = result + (diagnostics,)
+        
+        return result
