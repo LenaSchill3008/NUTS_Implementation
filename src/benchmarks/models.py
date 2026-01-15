@@ -20,34 +20,7 @@ class CorrelatedGaussian(LogDensity):
 
     def grad_log_prob(self, x):
         return -self.A @ x
-
-
-class Banana(LogDensity):
-    def __init__(self, b=0.1):
-        self.b = b
-
-    def log_prob(self, x):
-        y1 = x[0]
-        y2 = x[1] - self.b * (x[0]**2 - 1)
-        return -0.5 * (y1**2 + y2**2)
-
-    def grad_log_prob(self, x):
-        grad = np.zeros_like(x)
-        grad[1] = -(x[1] - self.b * (x[0]**2 - 1))
-        grad[0] = -x[0] + 2 * self.b * x[0] * grad[1]
-        return grad
-
-class HighDimensionalGaussian(LogDensity):
-    def __init__(self, dim=20):
-        self.dim = dim
-        self.sigma = np.linspace(0.1, 2.0, dim)
     
-    def log_prob(self, x):
-        return -0.5 * np.sum((x / self.sigma) ** 2)
-    
-    def grad_log_prob(self, x):
-        return -x / (self.sigma ** 2)
-
 class GaussianMixture(LogDensity):
     def __init__(self):
         self.means = [np.array([-3.0, -3.0]), np.array([3.0, 3.0])]
@@ -81,6 +54,34 @@ class GaussianMixture(LogDensity):
         return (w1 * grad1 + w2 * grad2) / Z
 
 
+class Banana(LogDensity):
+    def __init__(self, b=0.1):
+        self.b = b
+
+    def log_prob(self, x):
+        y1 = x[0]
+        y2 = x[1] - self.b * (x[0]**2 - 1)
+        return -0.5 * (y1**2 + y2**2)
+
+    def grad_log_prob(self, x):
+        y2 = x[1] - self.b * (x[0]**2 - 1)
+        grad = np.zeros_like(x)
+        grad[0] = -x[0] + 2 * self.b * x[0] * y2
+        grad[1] = -y2
+        return grad
+
+class HighDimensionalGaussian(LogDensity):
+    def __init__(self, dim=20):
+        self.dim = dim
+        self.sigma = np.linspace(0.1, 2.0, dim)
+    
+    def log_prob(self, x):
+        return -0.5 * np.sum((x / self.sigma) ** 2)
+    
+    def grad_log_prob(self, x):
+        return -x / (self.sigma ** 2)
+
+
 class LogisticRegression(LogDensity):
     def __init__(self, X, y, prior_scale=10.0):
         self.X = X
@@ -90,12 +91,10 @@ class LogisticRegression(LogDensity):
     
     @staticmethod
     def log1p_exp(x):
-        """Numerically stable log(1 + exp(x))"""
         return np.where(x > 35, x, np.where(x < -35, 0.0, np.log1p(np.exp(np.clip(x, -35, 35)))))
     
     @staticmethod
     def sigmoid(x):
-        """Numerically stable sigmoid function"""
         x_clipped = np.clip(x, -35, 35)
         return np.where(x_clipped >= 0, 
                        1 / (1 + np.exp(-x_clipped)),

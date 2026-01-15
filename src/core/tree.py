@@ -28,7 +28,7 @@ class NutsTreeBuilder:
             joint = logp1 - 0.5 * np.dot(p1, p1)
 
              # Whether this state is valid under the slice
-            n = int(logu < joint)
+            n = int(logu <= joint)
 
             # Numerical safety check
             s = int(logu - 1000 < joint)

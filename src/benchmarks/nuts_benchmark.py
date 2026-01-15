@@ -4,7 +4,7 @@ from src.sampler.nuts import NUTSSampler
 from src.sampler.rwm import RandomWalkMetropolis
 from src.benchmarks.models import (
     StandardNormal, CorrelatedGaussian, Banana,
-    HighDimensionalGaussian, LogisticRegression, GaussianMixture
+    HighDimensionalGaussian, LogisticRegression
 )
 from src.benchmarks.metrics import (
     effective_sample_size, rhat, mean_squared_jump_distance, timed_run
@@ -117,9 +117,9 @@ def run_model(name, model, dim, n_chains=4):
     print(f"  Efficiency:      t={stats_comparison['efficiency_statistic']:.2f}, p={stats_comparison['efficiency_pvalue']:.4f}")
     
     if stats_comparison['ess_pvalue'] < 0.05:
-        print(f"  → NUTS has significantly higher ESS (p < 0.05)")
+        print(f"  -> NUTS has significantly higher ESS (p < 0.05)")
     if stats_comparison['efficiency_pvalue'] < 0.05:
-        print(f"  → NUTS is significantly more efficient (p < 0.05)")
+        print(f"  -> NUTS is significantly more efficient (p < 0.05)")
 
 
 def run():
@@ -129,10 +129,7 @@ def run():
     run_model("Correlated Gaussian (2D)", CorrelatedGaussian(), dim=2)
     run_model("Banana Distribution (2D)", Banana(), dim=2)
     run_model("High-Dimensional Gaussian (20D)", HighDimensionalGaussian(20), dim=20)
-    run_model("Gaussian Mixture (2D)", GaussianMixture(), dim=2)
     
-
-    # print("Logistic Regression")
     
     np.random.seed(123)
     n, d = 200, 5

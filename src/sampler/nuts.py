@@ -2,6 +2,7 @@ import numpy as np
 from src.core.leapfrog import LeapfrogIntegrator
 from src.core.tree import NutsTreeBuilder
 from src.core.adaptation import DualAveraging
+from src.core.adaptation import find_reasonable_epsilon
 
 
 class NUTSSampler:
@@ -24,9 +25,10 @@ class NUTSSampler:
         } if collect_diagnostics else None
 
         logp, grad_u = self.log_density.evaluate(x0)
-        eps = 1.0
 
+        eps = find_reasonable_epsilon(self.log_density, x0)
         adapt = DualAveraging(self.delta, eps)
+
         x = x0.copy()
 
         for m in range(1, n_samples + n_adapt + 1):
@@ -75,12 +77,14 @@ class NUTSSampler:
 
             if m <= n_adapt:
                 eps = adapt.update(m, eps, alpha, n_alpha)
+                if m == n_adapt:
+                    eps = adapt.eps_bar
             else:
                 samples.append(x.copy())
                 logps.append(logp)
                 
                 if collect_diagnostics:
-                    diagnostics['n_leapfrog'].append(nac)
+                    diagnostics['n_leapfrog'].append(n_alpha)
                     diagnostics['depth'].append(depth)
                     diagnostics['accept_prob'].append(alpha / max(n_alpha, 1))
 
