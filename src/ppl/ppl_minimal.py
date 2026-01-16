@@ -5,15 +5,15 @@ to the existing NUTS implementation.
 """
 
 import numpy as np
-from typing import Callable, Dict, Optional
 from src.core.density import LogDensity
 from src.core.gradient import NumericalGradient
 
 
 _CURRENT_CONTEXT = None
 
-def sample(name: str, dist: 'Distribution', obs: Optional[np.ndarray] = None):
+def sample(name, dist, obs = None):
     """Sample from a distribution or condition on observed data."""
+
     if _CURRENT_CONTEXT is None:
         raise RuntimeError("sample() must be called within a context")
     return _CURRENT_CONTEXT.sample(name, dist, obs)
@@ -21,18 +21,21 @@ def sample(name: str, dist: 'Distribution', obs: Optional[np.ndarray] = None):
 
 class Transform:
     """Base transform for bijective mappings."""
+
     def forward(self, x): raise NotImplementedError
     def log_det_jac(self, x): raise NotImplementedError
 
 
 class Identity(Transform):
     """Identity transform for unconstrained variables."""
+
     def forward(self, x): return x
     def log_det_jac(self, x): return 0.0
 
 
 class Exp(Transform):
     """Exponential transform: y = exp(x) for positive variables."""
+
     def forward(self, x): return np.exp(x)
     def log_det_jac(self, x): return np.sum(x)
 
@@ -40,12 +43,14 @@ class Exp(Transform):
 
 class Distribution:
     """Base distribution class."""
+
     def log_prob(self, value): raise NotImplementedError
     def transform(self): return Identity()
 
 
 class Normal(Distribution):
     """Normal distribution."""
+
     def __init__(self, loc=0.0, scale=1.0):
         self.loc = loc
         self.scale = scale
@@ -57,6 +62,7 @@ class Normal(Distribution):
 
 class HalfNormal(Distribution):
     """Half-normal distribution (positive only)."""
+
     def __init__(self, scale=1.0):
         self.scale = scale
     
@@ -70,6 +76,7 @@ class HalfNormal(Distribution):
 
 class Context:
     """Base context for tracking execution."""
+
     def __init__(self):
         self.log_prob = 0.0
     
@@ -89,6 +96,7 @@ class Context:
 
 class Collector(Context):
     """Collects variable names without requiring values."""
+
     def __init__(self):
         super().__init__()
         self.vars = []
@@ -101,6 +109,7 @@ class Collector(Context):
 
 class Evaluator(Context):
     """Evaluates log probability in unconstrained space."""
+
     def __init__(self, var_to_idx, X):
         super().__init__()
         self.var_to_idx = var_to_idx
@@ -145,7 +154,7 @@ class LogJoint(LogDensity):
         constrained = logjoint.to_constrained(samples)
     """
     
-    def __init__(self, model_fn: Callable, *args, **kwargs):
+    def __init__(self, model_fn, *args, **kwargs):
         self.model_fn = model_fn
         self.args = args
         self.kwargs = kwargs
@@ -165,21 +174,24 @@ class LogJoint(LogDensity):
         # Setup numerical gradients
         self._grad = NumericalGradient(self.log_prob, dx=1e-5, order=2)
     
-    def log_prob(self, X: np.ndarray) -> float:
+    def log_prob(self, X: np.ndarray):
         """Evaluate log probability."""
+
         ctx = Evaluator(self.var_to_idx, X)
         with ctx:
             self.model_fn(*self.args, **self.kwargs)
         return ctx.log_prob
     
-    def grad_log_prob(self, X: np.ndarray) -> np.ndarray:
+    def grad_log_prob(self, X):
         """Compute gradient via finite differences."""
+
         return self._grad(X)
     
-    def to_constrained(self, samples: np.ndarray) -> Dict[str, np.ndarray]:
+    def to_constrained(self, samples):
         """
         Convert unconstrained samples to constrained space.
         """
+
         n = samples.shape[0]
         result = {v: [] for v in self.vars}
         

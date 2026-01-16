@@ -2,9 +2,10 @@ import numpy as np
 from scipy import stats
 from src.sampler.nuts import NUTSSampler
 from src.sampler.rwm import RandomWalkMetropolis
+from src.sampler.hmc import HMCSampler
 from src.benchmarks.models import (
     StandardNormal, CorrelatedGaussian, Banana,
-    HighDimensionalGaussian, LogisticRegression
+    LogisticRegression, NealsFunnel
 )
 from src.benchmarks.metrics import (
     effective_sample_size, rhat, mean_squared_jump_distance, timed_run
@@ -28,18 +29,22 @@ def run_multiple_chains(sampler_class, model, x0_list, sampler_kwargs, sample_kw
     return chains, times
 
 
-def statistical_comparison(nuts_ess, rwm_ess, nuts_times, rwm_times):
-    ess_ttest = stats.ttest_ind(nuts_ess, rwm_ess, alternative='greater')
+def statistical_comparison(nuts_ess, hmc_ess, rwm_ess, nuts_times, hmc_times, rwm_times):
+    nuts_vs_rwm = stats.ttest_ind(nuts_ess, rwm_ess, alternative='greater')
+    hmc_vs_rwm = stats.ttest_ind(hmc_ess, rwm_ess, alternative='greater')
     
     nuts_ess_per_sec = np.array(nuts_ess) / np.array(nuts_times)
+    hmc_ess_per_sec = np.array(hmc_ess) / np.array(hmc_times)
     rwm_ess_per_sec = np.array(rwm_ess) / np.array(rwm_times)
-    efficiency_ttest = stats.ttest_ind(nuts_ess_per_sec, rwm_ess_per_sec, alternative='greater')
+    
+    nuts_efficiency = stats.ttest_ind(nuts_ess_per_sec, rwm_ess_per_sec, alternative='greater')
+    hmc_efficiency = stats.ttest_ind(hmc_ess_per_sec, rwm_ess_per_sec, alternative='greater')
     
     return {
-        'ess_pvalue': ess_ttest.pvalue,
-        'ess_statistic': ess_ttest.statistic,
-        'efficiency_pvalue': efficiency_ttest.pvalue,
-        'efficiency_statistic': efficiency_ttest.statistic
+        'nuts_vs_rwm_pvalue': nuts_vs_rwm.pvalue,
+        'hmc_vs_rwm_pvalue': hmc_vs_rwm.pvalue,
+        'nuts_efficiency_pvalue': nuts_efficiency.pvalue,
+        'hmc_efficiency_pvalue': hmc_efficiency.pvalue
     }
 
 
@@ -63,6 +68,17 @@ def run_model(name, model, dim, n_chains=4):
     nuts_samples = [result[0] for result in nuts_results]
     nuts_diagnostics = [result[3] for result in nuts_results]
     
+    hmc_results = []
+    hmc_times = []
+    for x0 in x0_list:
+        sampler = HMCSampler(model, L=10, eps=0.1)
+        result, runtime = timed_run(lambda: sampler.sample(x0, n_samples=4000))
+        hmc_results.append(result)
+        hmc_times.append(runtime)
+    
+    hmc_samples = [result[0] for result in hmc_results]
+    hmc_accept_rates = [result[1] for result in hmc_results]
+    
     rwm_results = []
     rwm_times = []
     for x0 in x0_list:
@@ -76,25 +92,30 @@ def run_model(name, model, dim, n_chains=4):
 
     if dim == 1:
         nuts_chains_0 = [chain.flatten() for chain in nuts_samples]
+        hmc_chains_0 = [chain.flatten() for chain in hmc_samples]
         rwm_chains_0 = [chain.flatten() for chain in rwm_samples]
     else:
         nuts_chains_0 = [chain[:, 0] for chain in nuts_samples]
+        hmc_chains_0 = [chain[:, 0] for chain in hmc_samples]
         rwm_chains_0 = [chain[:, 0] for chain in rwm_samples]
     
     nuts_ess = [effective_sample_size(chain) for chain in nuts_chains_0]
+    hmc_ess = [effective_sample_size(chain) for chain in hmc_chains_0]
     rwm_ess = [effective_sample_size(chain) for chain in rwm_chains_0]
     
     nuts_rhat = rhat(nuts_chains_0)
+    hmc_rhat = rhat(hmc_chains_0)
     rwm_rhat = rhat(rwm_chains_0)
     
     nuts_msjd = np.mean([mean_squared_jump_distance(chain) for chain in nuts_samples])
+    hmc_msjd = np.mean([mean_squared_jump_distance(chain) for chain in hmc_samples])
     rwm_msjd = np.mean([mean_squared_jump_distance(chain) for chain in rwm_samples])
     
     avg_leapfrog = np.mean([np.mean(diag['n_leapfrog']) for diag in nuts_diagnostics])
     avg_depth = np.mean([np.mean(diag['depth']) for diag in nuts_diagnostics])
     avg_accept_prob = np.mean([np.mean(diag['accept_prob']) for diag in nuts_diagnostics])
 
-    stats_comparison = statistical_comparison(nuts_ess, rwm_ess, nuts_times, rwm_times)
+    stats_comparison = statistical_comparison(nuts_ess, hmc_ess, rwm_ess, nuts_times, hmc_times, rwm_times)
 
     print(f"\nNUTS (averaged over {n_chains} chains):")
     print(f"  Runtime:         {np.mean(nuts_times):.2f}s ± {np.std(nuts_times):.2f}s")
@@ -105,6 +126,13 @@ def run_model(name, model, dim, n_chains=4):
     print(f"  Avg depth:       {avg_depth:.1f}")
     print(f"  Accept prob:     {avg_accept_prob:.3f}")
 
+    print(f"\nHMC (averaged over {n_chains} chains):")
+    print(f"  Runtime:         {np.mean(hmc_times):.2f}s ± {np.std(hmc_times):.2f}s")
+    print(f"  ESS:             {np.mean(hmc_ess):.1f} ± {np.std(hmc_ess):.1f}")
+    print(f"  R-hat:           {hmc_rhat:.4f}")
+    print(f"  MSJD:            {hmc_msjd:.4f}")
+    print(f"  Accept rate:     {np.mean(hmc_accept_rates):.3f} ± {np.std(hmc_accept_rates):.3f}")
+
     print(f"\nRWM (averaged over {n_chains} chains):")
     print(f"  Runtime:         {np.mean(rwm_times):.2f}s ± {np.std(rwm_times):.2f}s")
     print(f"  ESS:             {np.mean(rwm_ess):.1f} ± {np.std(rwm_ess):.1f}")
@@ -113,13 +141,17 @@ def run_model(name, model, dim, n_chains=4):
     print(f"  Accept rate:     {np.mean(rwm_accept_rates):.3f} ± {np.std(rwm_accept_rates):.3f}")
 
     print(f"\nStatistical Comparison:")
-    print(f"  ESS difference:  t={stats_comparison['ess_statistic']:.2f}, p={stats_comparison['ess_pvalue']:.4f}")
-    print(f"  Efficiency:      t={stats_comparison['efficiency_statistic']:.2f}, p={stats_comparison['efficiency_pvalue']:.4f}")
+    print(f"  NUTS vs RWM:     p={stats_comparison['nuts_vs_rwm_pvalue']:.4f}")
+    print(f"  HMC vs RWM:      p={stats_comparison['hmc_vs_rwm_pvalue']:.4f}")
     
-    if stats_comparison['ess_pvalue'] < 0.05:
+    if stats_comparison['nuts_vs_rwm_pvalue'] < 0.05:
         print(f"  -> NUTS has significantly higher ESS (p < 0.05)")
-    if stats_comparison['efficiency_pvalue'] < 0.05:
+    if stats_comparison['hmc_vs_rwm_pvalue'] < 0.05:
+        print(f"  -> HMC has significantly higher ESS (p < 0.05)")
+    if stats_comparison['nuts_efficiency_pvalue'] < 0.05:
         print(f"  -> NUTS is significantly more efficient (p < 0.05)")
+    if stats_comparison['hmc_efficiency_pvalue'] < 0.05:
+        print(f"  -> HMC is significantly more efficient (p < 0.05)")
 
 
 def run():
@@ -128,8 +160,8 @@ def run():
     run_model("Standard Normal (1D)", StandardNormal(), dim=1)
     run_model("Correlated Gaussian (2D)", CorrelatedGaussian(), dim=2)
     run_model("Banana Distribution (2D)", Banana(), dim=2)
-    run_model("High-Dimensional Gaussian (20D)", HighDimensionalGaussian(20), dim=20)
-    
+
+    run_model("Neal's Funnel (10D)", NealsFunnel(10), dim=10)
     
     np.random.seed(123)
     n, d = 200, 5

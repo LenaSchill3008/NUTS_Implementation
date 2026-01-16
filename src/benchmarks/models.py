@@ -112,3 +112,47 @@ class LogisticRegression(LogDensity):
         grad_likelihood = self.X.T @ (self.y - probs)
         grad_prior = -beta / self.prior_scale ** 2
         return grad_likelihood + grad_prior
+    
+
+class NealsFunnel(LogDensity):
+    """
+    Neal's funnel distribution 
+    
+    The distribution is:
+        y ~ Normal(0, 3)
+        x_i ~ Normal(0, exp(y/2)) for i=1,...,d-1
+    
+    This creates a funnel shape where the scale of x depends on y:
+    - Large y -> wide funnel (large variance in x)
+    - Small y -> narrow neck (tiny variance in x)
+    """
+
+    def __init__(self, dim=10):
+        self.dim = dim
+    
+    def log_prob(self, theta):
+        y = theta[0]
+        x = theta[1:]
+        
+        # Log probability of y
+        log_p_y = -0.5 * (y / 3.0) ** 2
+        
+        # Log probability of x given y
+        sigma_x = np.exp(y / 2.0)
+        log_p_x = -0.5 * np.sum((x / sigma_x) ** 2) - (self.dim - 1) * y / 2.0
+        
+        return log_p_y + log_p_x
+    
+    def grad_log_prob(self, theta):
+        y = theta[0]
+        x = theta[1:]
+        
+        # Gradient w.r.t. y
+        grad_y = -y / 9.0  # from p(y)
+        sigma_x = np.exp(y / 2.0)
+        grad_y += np.sum(x ** 2) / (2 * sigma_x ** 2) - (self.dim - 1) / 2.0  # from p(x|y)
+        
+        # Gradient w.r.t. x
+        grad_x = -x / (sigma_x ** 2)
+        
+        return np.concatenate([[grad_y], grad_x])

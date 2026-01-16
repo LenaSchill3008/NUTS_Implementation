@@ -5,7 +5,7 @@ Shows how to use the minimal PPL with NUTS for Bayesian inference.
 """
 
 import numpy as np
-from src.ppl_minimal import sample, Normal, HalfNormal, LogJoint
+from src.ppl.ppl_minimal import sample, Normal, HalfNormal, LogJoint
 from src.sampler.nuts import NUTSSampler
 
 
