@@ -14,7 +14,7 @@ nuts/
 │   │   ├── leapfrog.py          # Implements leapfrog integration for Hamiltonian dynamics
 │   │   ├── gradient.py          # Provides gradient computation utilities 
 │   │   ├── tree.py              # Implements tree-building logic for NUTS recursion
-│   │   └── adaptation.py        # Handles step size and mass matrix adaptation
+│   │   └── adaptation.py        # Handles step size adaptation
 │   ├── sampler/
 │   │   ├── nuts.py              # NUTS sampler implementation
 │   │   ├── hmc.py               # Hamiltonian Monte Carlo sampler
