@@ -11,6 +11,7 @@ from src.sampler.nuts import NUTSSampler
 
 def demo_simple():
     """Demo 1: Infer mean and variance from data."""
+
     print("\n" + "="*60)
     print("Demo 1: Simple Inference")
     print("="*60)
@@ -46,6 +47,7 @@ def demo_simple():
 
 def demo_regression():
     """Demo 2: Bayesian linear regression."""
+    
     print("\n" + "="*60)
     print("Demo 2: Bayesian Linear Regression")
     print("="*60)
